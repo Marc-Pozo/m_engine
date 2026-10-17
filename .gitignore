@@ -1,0 +1,33 @@
+# Build output
+/build/
+/cmake-build-*/
+/out/
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Python virtual environment
+.venv/
+
+# Compiled files
+*.o
+*.a
+*.so
+*.so.*
+*.dll
+*.exe
+*.dylib
+
+# Debugging and profiling output
+core
+core.*
+*.prof
+*.trace
+
+# Logs and temporary files
+*.log
+*.tmp
+.DS_Store
