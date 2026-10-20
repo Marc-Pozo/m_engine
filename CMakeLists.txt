@@ -22,17 +22,33 @@ target_include_directories(glad PUBLIC
     third_party/glad/include
 )
 
-add_executable(M-Engine
-    samples/main.cpp
+file(GLOB_RECURSE ENGINE_SOURCES CONFIGURE_DEPENDS
+    "${CMAKE_CURRENT_SOURCE_DIR}/engine/*.cpp"
 )
 
-target_link_libraries(M-Engine PRIVATE
+add_library(m_engine STATIC
+    ${ENGINE_SOURCES}
+)
+
+target_include_directories(m_engine PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}
+)
+
+target_link_libraries(m_engine PUBLIC
     glad
     glfw
     glm::glm
     OpenGL::GL
 )
 
-target_compile_options(M-Engine PRIVATE
+target_compile_options(m_engine PRIVATE
     $<$<CXX_COMPILER_ID:GNU,Clang>:-Wall;-Wextra;-Wpedantic>
+)
+
+add_executable(M-Engine
+    samples/main.cpp
+)
+
+target_link_libraries(M-Engine PRIVATE
+    m_engine
 )

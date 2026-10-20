@@ -1,22 +1,21 @@
 # M-Engine
 
-A learning-focused 3D game engine and editor built in C++ with OpenGL. The project is developed on Ubuntu and uses CMake for reproducible builds.
+A learning-focused 3D game engine and editor built in C++ with OpenGL. The project supports development on Windows and Ubuntu, using CMake for reproducible builds and Make for convenient development commands.
 
-> **Current status:** Bootstrap stage. The initial goal is a working OpenGL application, followed by a first 3D renderer and progressively more engine/editor systems.
+> **Current status:** Bootstrap stage. The initial goal is a working OpenGL application, followed by a first 3D renderer and progressively more engine and editor systems.
 
 ## Table of Contents
 
 - [Goals](#goals)
 - [Technology Stack](#technology-stack)
 - [Prerequisites](#prerequisites)
+- [Windows Setup](#windows-setup)
 - [Ubuntu Setup](#ubuntu-setup)
-- [Build and Run](#build-and-run)
+- [Build, Run, and Hot Reload](#build-run-and-hot-reload)
 - [Project Structure](#project-structure)
 - [Git Workflow](#git-workflow)
 - [Commit Conventions](#commit-conventions)
-- [Development Guidelines](#development-guidelines)
 - [Roadmap](#roadmap)
-- [Troubleshooting](#troubleshooting)
 
 ## Goals
 
@@ -26,34 +25,54 @@ M-Engine is a solo-developer learning and portfolio project. Its goals are to:
 - Develop a clear, modular C++ engine architecture.
 - Create an editor for inspecting and working with scenes.
 - Use reliable build, testing, and version-control practices.
+- Maintain a consistent development workflow across Windows and Linux.
 
 ## Technology Stack
 
 | Area | Technology |
 |---|---|
 | Language | C++20 |
-| Graphics API | OpenGL 4.5 Core Profile |
+| Graphics API | OpenGL |
 | Window and input | GLFW |
 | OpenGL function loading | GLAD 2 |
 | Mathematics | GLM |
-| Shaders | GLSL 4.50 |
+| Shaders | GLSL |
 | Build system | CMake |
-| Build generator | Ninja |
-| Compiler | GCC or Clang |
+| Build presets | CMake Presets |
+| Development commands | GNU Make |
+| File watching and hot reload | watchexec |
+| Windows compiler | MSVC |
+| Linux compiler | GCC |
 | Version control | Git |
 
-The machine's graphics driver must support OpenGL 4.5. The application prints the OpenGL version reported by the driver when it starts.
+The application requires a graphics driver that supports the OpenGL version requested by the application. The application reports the OpenGL version supplied by the driver at startup.
 
 ## Prerequisites
 
-On Ubuntu, install the compiler, build tools, graphics libraries, and development headers:
+### Windows
+
+Install the following tools:
+
+- [Visual Studio Build Tools](https://visualstudio.microsoft.com/downloads/) with **Desktop development with C++**, including the MSVC compiler and Windows SDK.
+- [CMake](https://cmake.org/download/).
+- [Git](https://git-scm.com/downloads).
+- [vcpkg](https://github.com/microsoft/vcpkg) for GLFW and GLM.
+- [GNU Make](https://www.gnu.org/software/make/) through a compatible Windows environment or distribution.
+- [watchexec](https://watchexec.github.io/downloads/watchexec/) for automatic rebuilding and relaunching.
+- [Visual Studio Code](https://code.visualstudio.com/) with the C/C++ and CMake Tools extensions.
+
+The current Windows configuration uses Visual Studio Build Tools 2026, the `Visual Studio 18 2026` CMake generator, and the x64 architecture.
+
+### Ubuntu
+
+Install the compiler, build tools, graphics libraries, and development headers:
 
 ```bash
 sudo apt update
 sudo apt install -y \
   build-essential \
   cmake \
-  ninja-build \
+  make \
   git \
   gdb \
   pkg-config \
@@ -70,17 +89,85 @@ sudo apt install -y \
   python3-pip
 ```
 
-Verify the key tools are available:
+Install `watchexec`:
+
+```bash
+sudo apt install -y watchexec
+```
+
+If your Ubuntu repositories do not provide the package, install the appropriate Linux package from the [official watchexec downloads](https://watchexec.github.io/downloads/watchexec/).
+
+Verify the tools:
 
 ```bash
 g++ --version
 cmake --version
-ninja --version
+make --version
 git --version
+watchexec --version
 glxinfo -B
 ```
 
-In the output of `glxinfo -B`, check the **OpenGL version** and **OpenGL renderer**. Ensure the reported version is compatible with OpenGL 4.5.
+In the output of `glxinfo -B`, inspect the **OpenGL version** and **OpenGL renderer**. Confirm that the graphics driver supports the OpenGL version requested by the application. Run this check from a graphical desktop session.
+
+## Windows Setup
+
+### 1. Clone the repository
+
+In PowerShell:
+
+```powershell
+mkdir C:\dev -ErrorAction SilentlyContinue
+cd C:\dev
+git clone git@github.com:Marc-Pozo/m_engine.git
+cd m_engine
+```
+
+You can clone the repository into another directory if preferred.
+
+### 2. Install dependencies with vcpkg
+
+Install vcpkg following its [official setup instructions](https://learn.microsoft.com/en-us/vcpkg/get_started/get-started).
+
+The current CMake preset expects vcpkg at:
+
+```text
+C:/dev/vcpkg
+```
+
+If your installation is elsewhere, update the `CMAKE_TOOLCHAIN_FILE` value in `CMakePresets.json` to point to your local vcpkg toolchain file.
+
+Install the required libraries for the 64-bit Windows target:
+
+```powershell
+C:\dev\vcpkg\vcpkg.exe install glfw3:x64-windows glm:x64-windows
+```
+
+### 3. Configure and build
+
+From the repository root:
+
+```powershell
+cmake --list-presets
+cmake --preset windows-debug
+cmake --build --preset windows-debug
+```
+
+The Windows preset uses the Visual Studio 2026 generator and x64 architecture.
+
+### 4. Run
+
+The Debug executable is generated at:
+
+```text
+build/windows-msvc/Debug/M-Engine.exe
+```
+
+Run it from PowerShell:
+
+```powershell
+.\build\windows-msvc\Debug\M-Engine.exe
+```
 
 ## Ubuntu Setup
 
@@ -93,13 +180,15 @@ git clone git@github.com:Marc-Pozo/m_engine.git
 cd m_engine
 ```
 
-If you use HTTPS instead of SSH, clone with the HTTPS URL shown by GitHub.
+HTTPS can be used instead of SSH if preferred.
 
-### 2. Generate GLAD 2
+### 2. Generate GLAD 2 if needed
 
-M-Engine uses GLAD to load OpenGL functions. The generated GLAD source and headers should be committed to the repository so other developers can build without regenerating them.
+M-Engine uses GLAD to load OpenGL functions. Generated GLAD source and headers should be committed to the repository so developers can build without regenerating them.
 
-If `third_party/glad/` is not already present in the repository, generate it:
+If `third_party/glad/` is already present and contains the required generated files, skip this step.
+
+Otherwise:
 
 ```bash
 python3 -m venv .venv
@@ -109,75 +198,113 @@ python -m pip install glad2
 glad --api gl:core=4.5 --out-path third_party/glad c --loader
 ```
 
-For GLAD 2, the header used by the application is typically:
+For GLAD 2, the application typically includes:
 
 ```cpp
 #include <glad/gl.h>
 ```
 
-The generated C source is typically `third_party/glad/src/gl.c`. Confirm these paths match the CMake configuration before building. You do **not** need to activate the Python virtual environment for normal C++ builds once GLAD has been generated.
+The generated C source is typically `third_party/glad/src/gl.c`. Confirm these paths match `CMakeLists.txt`.
 
-### 3. Configure the project
+Once GLAD has been generated, the Python virtual environment does not need to be activated for normal C++ builds.
 
-The repository provides CMake presets for Debug and Release builds:
+### 3. Configure and build
 
-```bash
-cmake --preset debug
-```
-
-If presets are not available yet, use the equivalent direct configuration command:
+From the repository root:
 
 ```bash
-cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug
+cmake --list-presets
+cmake --preset ubuntu-debug
+cmake --build --preset ubuntu-debug
 ```
 
-### 4. Build
+The Ubuntu preset uses GCC and Unix Makefiles, with its build output placed under `build/ubuntu-debug/`.
 
-With presets:
+### 4. Run
 
 ```bash
-cmake --build --preset debug
+./build/ubuntu-debug/M-Engine
 ```
 
-Or, if you configured with the direct command:
+Run the application from a graphical desktop session with a working OpenGL driver.
+
+## Build, Run, and Hot Reload
+
+The repository includes a `Makefile` that provides consistent commands across Windows and Ubuntu. It detects the operating system and selects the appropriate CMake preset and development script.
+
+Run these commands from the repository root.
+
+| Command | Description |
+|---|---|
+| `make build` | Build the engine once using the platform's Debug preset. |
+| `make dev` | Watch for file changes, rebuild, and relaunch the engine. |
+| `make clean` | Clean the configured build target. |
+
+### Hot reload
+
+Start the development watcher:
 
 ```bash
-cmake --build build
+make dev
 ```
 
-### 5. Run
+The workflow uses `watchexec` with a 500 ms debounce interval. When a watched project file changes, the watcher restarts the development command, which builds the engine and launches the executable if the build succeeds.
 
-The executable location depends on the chosen build configuration:
+The platform-specific scripts are:
+
+- `scripts/dev.ps1` — Windows development build and launch.
+- `scripts/dev.sh` — Ubuntu development build and launch.
+
+The Makefile selects the appropriate script automatically.
+
+To stop the watcher, press `Ctrl+C`.
+
+**Requirements for hot reload:**
+
+- `watchexec` and GNU Make must be installed and available on `PATH`.
+- The platform's CMake preset must configure successfully.
+- The required compiler and dependencies must be installed.
+- On Linux, the application must be able to access a graphical display to open its GLFW window.
+
+### CMake presets
+
+The current project provides the following Debug presets:
+
+| Preset | Platform | Build directory |
+|---|---|---|
+| `windows-debug` | Windows / MSVC | `build/windows-msvc/` |
+| `ubuntu-debug` | Ubuntu / GCC | `build/ubuntu-debug/` |
+
+You can use CMake directly if you do not want to use Make:
 
 ```bash
-./build/debug/M-Engine
+cmake --preset ubuntu-debug
+cmake --build --preset ubuntu-debug
 ```
 
-For the direct configuration command, run:
+On Windows, use:
 
-```bash
-./build/M-Engine
+```powershell
+cmake --preset windows-debug
+cmake --build --preset windows-debug
 ```
 
-### 6. Release build
-
-```bash
-cmake --preset release
-cmake --build --preset release
-```
-
-Run the Release executable at `./build/release/M-Engine` if that is the binary path configured by the project.
+Use the platform-appropriate commands. Do not select a preset intended for the other operating system.
 
 ## Project Structure
 
-The intended layout is:
+The intended project layout is:
 
 ```text
 m_engine/
 ├── CMakeLists.txt
 ├── CMakePresets.json
+├── Makefile
 ├── .gitignore
 ├── README.md
+├── scripts/
+│   ├── dev.ps1
+│   └── dev.sh
 ├── assets/
 │   ├── models/
 │   ├── shaders/
@@ -185,18 +312,21 @@ m_engine/
 ├── docs/
 ├── third_party/
 │   └── glad/
+├── samples/
+│   └── main.cpp
 ├── src/
-│   ├── engine/
-│   │   ├── assets/
-│   │   ├── core/
-│   │   ├── editor/
-│   │   ├── platform/
-│   │   ├── renderer/
-│   │   └── scene/
-│   └── samples/
+│   └── engine/
+│       ├── assets/
+│       ├── core/
+│       ├── editor/
+│       ├── platform/
+│       ├── renderer/
+│       └── scene/
 ├── tests/
 └── build/                 # Generated; do not commit
 ```
+
+Some directories represent planned architecture and may not exist yet.
 
 - `src/engine/core/`: application lifecycle, logging, and shared utilities.
 - `src/engine/platform/`: windowing and platform-specific code.
@@ -204,11 +334,13 @@ m_engine/
 - `src/engine/scene/`: entities, transforms, and scene management.
 - `src/engine/assets/`: asset loading and resource management.
 - `src/engine/editor/`: editor UI and tools.
-- `src/samples/`: executable used to develop and test engine features.
-- `assets/`: runtime assets, including shader files.
-- `third_party/`: vendored/generated third-party code required to build.
+- `samples/`: executable used to develop and test engine features.
+- `assets/`: runtime assets, including shaders, models, and textures.
+- `third_party/`: vendored or generated third-party code required to build.
+- `scripts/`: platform-specific development scripts.
 - `docs/`: design notes and technical specifications.
 - `tests/`: automated tests.
+- `build/`: generated CMake build artifacts; never commit this directory.
 
 ## Git Workflow
 
@@ -235,10 +367,22 @@ When the work is ready, run the relevant build and tests, review the diff, and m
 
 ### Before committing
 
-```bash
+Build using the preset for your current platform:
+
+**Windows:**
+
+```powershell
+make build
 git status
 git diff
-cmake --build --preset debug
+```
+
+**Ubuntu:**
+
+```bash
+make build
+git status
+git diff
 ```
 
 Run tests when configured, and check that generated build output, IDE metadata, and local virtual environments are not staged:
@@ -275,9 +419,10 @@ feat(renderer): render indexed 3D cube
 feat(platform): add GLFW window wrapper
 fix(renderer): correct depth buffer initialization
 refactor(scene): separate transforms from entities
-docs: document Ubuntu build instructions
+docs: document cross-platform build instructions
 test(math): cover transform composition
-build(cmake): add Debug and Release presets
+build(cmake): add Debug presets
+chore(dev): add hot-reload workflow
 ```
 
 ### Allowed types
@@ -304,7 +449,7 @@ build(cmake): add Debug and Release presets
 5. Do not end the summary with a period.
 6. Keep each commit focused on one logical change.
 7. Do not commit broken intermediate work to `main`.
-8. Add a body when useful to explain **why** a change was made or note trade-offs. Wrap up the body with a blank line before any footer.
+8. Add a body when useful to explain **why** a change was made or note trade-offs. Leave a blank line before any footer.
 9. Reference issue IDs in the footer when applicable, for example `Refs: #12`.
 
 Breaking changes can use `!` after the type or scope, with details in the commit body:
@@ -316,23 +461,12 @@ feat(renderer)!: replace the material API
 ### Suggested commit sequence for the initial setup
 
 ```bash
-git add .gitignore CMakeLists.txt CMakePresets.json README.md
-git add src assets docs tests third_party
+git add .gitignore CMakeLists.txt CMakePresets.json Makefile README.md
+git add scripts samples assets docs tests third_party
 git commit -m "chore: bootstrap M-Engine project"
 ```
 
 Adjust the staged paths to match the files that actually exist. Do not stage files that are absent or generated build output.
-
-## Development Guidelines
-
-- Prefer small, cohesive classes with explicit ownership and lifecycle.
-- Keep OpenGL-specific implementation inside the renderer rather than spreading it across scene or editor code.
-- Check shader compilation and program linking; include useful diagnostic logs.
-- Use RAII for C++ resources where practical.
-- Keep build and runtime configuration reproducible.
-- Avoid committing `build/`, `.venv/`, compiled binaries, editor-specific files, or machine-local configuration.
-- Vendor or commit generated loader code only where needed to make builds reproducible; do not commit unrelated package caches.
-- Update documentation when commands, dependencies, directory layout, or architecture change.
 
 ## Roadmap
 
@@ -347,56 +481,3 @@ Adjust the staged paths to match the files that actually exist. Do not stage fil
 9. **Quality:** automated tests, profiling, error handling, and documentation.
 
 Treat this as an evolving roadmap rather than a promise that every feature is already implemented.
-
-## Troubleshooting
-
-### CMake cannot find GLFW or GLM
-
-Confirm the Ubuntu development packages are installed:
-
-```bash
-sudo apt install libglfw3-dev libglm-dev
-```
-
-Then rerun configuration:
-
-```bash
-cmake --preset debug
-```
-
-### GLAD header or source cannot be found
-
-Check that the generated files exist:
-
-```bash
-ls third_party/glad/include/glad/gl.h
-ls third_party/glad/src/gl.c
-```
-
-If they are missing, follow [Generate GLAD 2](#2-generate-glad-2). Make sure CMake includes `third_party/glad/include` and compiles `third_party/glad/src/gl.c`.
-
-### OpenGL version is too low
-
-Run:
-
-```bash
-glxinfo -B
-```
-
-Update or configure the appropriate graphics driver for your GPU. If running inside a virtual machine or remote desktop, verify that 3D acceleration and the required OpenGL version are available.
-
-### The window opens and immediately closes or shows a blank screen
-
-Run from a terminal to see diagnostics:
-
-```bash
-./build/debug/M-Engine
-```
-
-Check the reported OpenGL version, shader compilation logs, and application output. Verify that the active build path matches the preset or CMake command you used.
-
----
-
-## License
-
-Add a `LICENSE` file before distributing the project. Until then, no license is explicitly granted by this README.
